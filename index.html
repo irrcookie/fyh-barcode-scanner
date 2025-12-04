@@ -10,6 +10,7 @@
         body { font-family: sans-serif; text-align: center; margin: 20px; background-color: #f4f4f9; }
         .logo { max-width: 150px; height: auto; margin-bottom: 15px; } 
         h1 { color: #333; font-size: 24px; margin-top: 5px; }
+        /* 鏡頭顯示區域，保持最大寬度限制 */
         #reader { width: 100%; max-width: 400px; margin: 0 auto; border: 1px solid #ccc; border-radius: 8px; overflow: hidden; }
         .result-box { background: white; padding: 15px; border-radius: 5px; margin-top: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         input[type="text"] { width: 90%; padding: 10px; margin: 10px 0; border: 2px solid #ddd; border-radius: 5px; font-size: 16px; }
@@ -49,8 +50,29 @@
         
         // 啟動掃描器函數
         function startScanner() {
-            if (html5Qrcode.isScanning) return; 
-            const config = { fps: 10, qrbox: { width: 250, height: 250 }, facingMode: "environment" };
+            // 先檢查並停止正在運行的掃描器，以確保重新啟動
+            if (html5Qrcode.isScanning) {
+                html5Qrcode.stop().then(() => {
+                    // 確保停止後才啟動
+                    _executeStartScanner();
+                }).catch((err) => {
+                    // 如果停止失敗，也嘗試啟動
+                    _executeStartScanner();
+                });
+            } else {
+                _executeStartScanner();
+            }
+        }
+
+        // 實際執行啟動的函數
+        function _executeStartScanner() {
+            // *** 這裡設定了長方形掃描框 (width: 300, height: 150) ***
+            const config = { 
+                fps: 10, 
+                qrbox: { width: 300, height: 150 }, 
+                facingMode: "environment" 
+            };
+
             html5Qrcode.start({ facingMode: "environment" }, config, onScanSuccess, onScanError)
             .catch((err) => {
                  statusMessage.textContent = "❌ 鏡頭啟動失敗！請檢查權限。";
@@ -62,13 +84,11 @@
         function onScanSuccess(decodedText, decodedResult) {
             barcodeInput.value = decodedText;
             statusMessage.textContent = "✅ 掃描成功：" + decodedText;
-            // 掃描成功後，**不再停止**鏡頭，讓用戶可以繼續觀察/掃描
-            // html5Qrcode.stop().then(() => {}).catch((err) => {}); 
         }
         
         function onScanError(errorMessage) {}
 
-        // --- 新函數：彈出確認視窗 ---
+        // --- 彈出確認視窗並處理結果 ---
         function confirmSubmission() {
             const barcode = barcodeInput.value;
             if (!barcode) { 
@@ -76,7 +96,6 @@
                 return;
             }
 
-            // 彈出確認視窗
             const isConfirmed = window.confirm(`你確定要提交條碼：${barcode} 嗎？`);
 
             if (isConfirmed) {
@@ -86,13 +105,11 @@
                 // 如果用戶點擊 "取消"，則清空條碼並重新啟動掃描
                 barcodeInput.value = ""; 
                 statusMessage.textContent = "已取消提交。請掃描下一個條碼。";
-                // 由於掃描器沒有停止，理論上無需再次調用 startScanner()，但為保險起見，可以調用
-                startScanner();
+                // 由於掃描器運行中，這裡不調用 startScanner()
             }
         }
         
-        // --- 核心提交函數：直接向 Google Form 提交數據 ---
-        // 獨立出來，由 confirmSubmission 調用
+        // --- 核心提交函數 (已修正) ---
         function submitData(barcode) {
             statusMessage.textContent = "⏳ 直接提交中，請稍候...";
             
@@ -101,12 +118,14 @@
 
             fetch(FORM_SUBMISSION_URL, {
                 method: 'POST',
-                body: new URLSearchParams(formData)
+                body: new URLSearchParams(formData),
+                redirect: 'manual' 
             })
             .then(response => {
-                if (response.ok || response.status === 302) {
+                if (response.status === 302 || response.type === 'opaque') {
                     statusMessage.textContent = "🎉 提交成功！條碼已記錄。";
                     barcodeInput.value = ""; 
+                    // *** 關鍵修復：提交成功後，重新啟動掃描器 ***
                     startScanner(); 
                 } else {
                     statusMessage.textContent = "❌ 提交失敗！Form 服務器錯誤。";
@@ -114,8 +133,11 @@
                 }
             })
             .catch(error => {
-                statusMessage.textContent = "❌ 傳輸失敗！請檢查網絡。";
-                console.error('Network Error:', error);
+                statusMessage.textContent = "❌ 傳輸失敗！請檢查網絡或 Forms 設定。";
+                console.error('真正的網絡錯誤:', error);
+                
+                // 如果傳輸失敗，也嘗試重新啟動（讓用戶可以再掃一次）
+                startScanner();
             });
         }
 
