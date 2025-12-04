@@ -1,4 +1,41 @@
-// ... (保留 CSS 和 HTML body 部分不變)
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FYH Barcode Scanner</title>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <style>
+        /* CSS 樣式定義 */
+        body { font-family: sans-serif; text-align: center; margin: 20px; background-color: #f4f4f9; }
+        .logo { max-width: 150px; height: auto; margin-bottom: 15px; } 
+        h1 { color: #333; font-size: 24px; margin-top: 5px; }
+        /* 鏡頭顯示區域，保持最大寬度限制 */
+        #reader { width: 100%; max-width: 400px; margin: 0 auto; border: 1px solid #ccc; border-radius: 8px; overflow: hidden; }
+        .result-box { background: white; padding: 15px; border-radius: 5px; margin-top: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        input[type="text"] { width: 90%; padding: 10px; margin: 10px 0; border: 2px solid #ddd; border-radius: 5px; font-size: 16px; }
+        /* 提交按鈕顏色調整 */
+        button { background-color: #28a745; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-size: 18px; margin-top: 10px; }
+        button:hover { background-color: #1e7e34; }
+        .status-message { margin-top: 15px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    
+    <img src="https://www.fuyunhon.com/wp-content/uploads/logo.jpg" alt="FYH Logo" class="logo">
+    
+    <h1>FYH Barcode Scanner</h1>
+    
+    <div id="reader"></div>
+
+    <div class="result-box">
+        <label for="barcode_input">掃描到的號碼：</label>
+        <input type="text" id="barcode_input" readonly placeholder="請掃描條碼或 QR Code">
+        
+        <button onclick="confirmSubmission()">✅ 直接提交紀錄</button>
+        
+        <p class="status-message" id="status"></p>
+    </div>
 
     <script>
         // 📌 Google Form 提交終點 URL
@@ -13,11 +50,13 @@
         
         // 啟動掃描器函數
         function startScanner() {
-            // 先停止正在運行的掃描器
+            // 先檢查並停止正在運行的掃描器，以確保重新啟動
             if (html5Qrcode.isScanning) {
                 html5Qrcode.stop().then(() => {
+                    // 確保停止後才啟動
                     _executeStartScanner();
                 }).catch(() => {
+                    // 如果停止失敗，也嘗試啟動
                     _executeStartScanner();
                 });
             } else {
@@ -27,9 +66,10 @@
 
         // 實際執行啟動的函數
         function _executeStartScanner() {
-            // 長方形掃描框設置
+            // *** 這裡設定了長方形掃描框 (width: 300, height: 150) ***
             const config = { 
                 fps: 10, 
+                // 寬 300px，高 150px
                 qrbox: { width: 300, height: 150 }, 
                 facingMode: "environment" 
             };
@@ -58,8 +98,6 @@
                 statusMessage.textContent = "⚠️ 請先掃描條碼！";
                 return;
             }
-
-            // 這裡不再需要停止鏡頭，因為掃描成功時已經停止了
             
             const isConfirmed = window.confirm(`你確定要提交條碼：${barcode} 嗎？`);
 
@@ -69,11 +107,11 @@
                 // 如果取消，則重新啟動掃描
                 barcodeInput.value = ""; 
                 statusMessage.textContent = "已取消提交。重新啟動掃描器...";
-                startScanner(); // 重新啟動掃描器
+                startScanner(); 
             }
         }
         
-        // --- 核心提交函數 (修改為跳轉) ---
+        // --- 核心提交函數 (成功後跳轉到 success.html) ---
         function submitData(barcode) {
             statusMessage.textContent = "⏳ 數據傳輸中，請稍候...";
             
@@ -83,12 +121,14 @@
             fetch(FORM_SUBMISSION_URL, {
                 method: 'POST',
                 body: new URLSearchParams(formData),
+                // 阻止 fetch 追蹤 302 重新導向
                 redirect: 'manual' 
             })
             .then(response => {
                 // 檢查是否成功接收 (302 或 opaque)
                 if (response.status === 302 || response.type === 'opaque') {
                     // *** 成功後，跳轉到 success.html 頁面 ***
+                    // 確保 success.html 檔案已上傳到 GitHub 根目錄
                     window.location.href = 'success.html'; 
                 } else {
                     statusMessage.textContent = "❌ 提交失敗！Form 服務器錯誤。";
