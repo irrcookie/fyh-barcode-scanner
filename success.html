@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>提交成功</title>
+    <style>
+        body { 
+            font-family: sans-serif; 
+            text-align: center; 
+            margin: 0; 
+            padding: 20px;
+            background-color: #e6ffe6; /* 淺綠色背景 */
+            color: #1e7e34;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh; /* 確保佔滿整個屏幕 */
+        }
+        .success-container {
+            padding: 30px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            max-width: 90%;
+        }
+        h1 { 
+            font-size: 36px; 
+            margin-bottom: 20px; 
+            color: #28a745;
+        }
+        p {
+            font-size: 20px;
+            margin-bottom: 30px;
+        }
+        /* 掃描另一個按鈕的樣式 */
+        .scan-again-btn { 
+            background-color: #007bff; 
+            color: white; 
+            padding: 15px 30px; 
+            border: none; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-size: 20px; 
+            text-decoration: none; /* 移除超連結下劃線 */
+            transition: background-color 0.3s;
+        }
+        .scan-again-btn:hover { 
+            background-color: #0056b3; 
+        }
+    </style>
+</head>
+<body>
+    <div class="success-container">
+        <h1>🎉 提交成功！</h1>
+        <p>條碼紀錄已成功發送到 Google Form。</p>
+        <a href="index.html" class="scan-again-btn">
+            掃描另一個條碼
+        </a>
+    </div>
+</body>
+</html>
