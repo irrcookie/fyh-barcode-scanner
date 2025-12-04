@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FYH Barcode Scanner</title>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <style>
+        /* CSS 樣式定義 */
+        body { font-family: sans-serif; text-align: center; margin: 20px; background-color: #f4f4f9; }
+        .logo { max-width: 150px; height: auto; margin-bottom: 15px; } 
+        h1 { color: #333; font-size: 24px; margin-top: 5px; }
+        #reader { width: 100%; max-width: 400px; margin: 0 auto; border: 1px solid #ccc; border-radius: 8px; overflow: hidden; }
+        .result-box { background: white; padding: 15px; border-radius: 5px; margin-top: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        input[type="text"] { width: 90%; padding: 10px; margin: 10px 0; border: 2px solid #ddd; border-radius: 5px; font-size: 16px; }
+        /* 提交按鈕顏色調整 */
+        button { background-color: #28a745; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-size: 18px; margin-top: 10px; }
+        button:hover { background-color: #1e7e34; }
+        .status-message { margin-top: 15px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    
+    <img src="https://www.fuyunhon.com/wp-content/uploads/logo.jpg" alt="FYH Logo" class="logo">
+    
+    <h1>FYH Barcode Scanner</h1>
+    
+    <div id="reader"></div>
+
+    <div class="result-box">
+        <label for="barcode_input">掃描到的號碼：</label>
+        <input type="text" id="barcode_input" readonly placeholder="請掃描條碼或 QR Code">
+        
+        <button onclick="confirmSubmission()">✅ 直接提交紀錄</button>
+        
+        <p class="status-message" id="status"></p>
+    </div>
+
+    <script>
+        // 📌 Google Form 提交終點 URL
+        const FORM_SUBMISSION_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSfZUGam9VPr8zRp5KqoW5V2V-egh_1euYde99oVT0HQ_M_NAw/formResponse'; 
+        
+        // 📌 Google Form 條碼欄位名稱 (entry ID)
+        const BARCODE_ENTRY_ID = 'entry.1388839353'; 
+
+        const html5Qrcode = new Html5Qrcode("reader");
+        const barcodeInput = document.getElementById("barcode_input");
+        const statusMessage = document.getElementById("status");
+        
+        // 啟動掃描器函數
+        function startScanner() {
+            if (html5Qrcode.isScanning) return; 
+            const config = { fps: 10, qrbox: { width: 250, height: 250 }, facingMode: "environment" };
+            html5Qrcode.start({ facingMode: "environment" }, config, onScanSuccess, onScanError)
+            .catch((err) => {
+                 statusMessage.textContent = "❌ 鏡頭啟動失敗！請檢查權限。";
+                 console.error("Camera start failed:", err);
+            });
+        }
+        
+        // 掃描成功處理函數
+        function onScanSuccess(decodedText, decodedResult) {
+            barcodeInput.value = decodedText;
+            statusMessage.textContent = "✅ 掃描成功：" + decodedText;
+            // 掃描成功後，**不再停止**鏡頭，讓用戶可以繼續觀察/掃描
+            // html5Qrcode.stop().then(() => {}).catch((err) => {}); 
+        }
+        
+        function onScanError(errorMessage) {}
+
+        // --- 新函數：彈出確認視窗 ---
+        function confirmSubmission() {
+            const barcode = barcodeInput.value;
+            if (!barcode) { 
+                statusMessage.textContent = "⚠️ 請先掃描條碼！";
+                return;
+            }
+
+            // 彈出確認視窗
+            const isConfirmed = window.confirm(`你確定要提交條碼：${barcode} 嗎？`);
+
+            if (isConfirmed) {
+                // 如果用戶點擊 "確認"，則執行提交
+                submitData(barcode);
+            } else {
+                // 如果用戶點擊 "取消"，則清空條碼並重新啟動掃描
+                barcodeInput.value = ""; 
+                statusMessage.textContent = "已取消提交。請掃描下一個條碼。";
+                // 由於掃描器沒有停止，理論上無需再次調用 startScanner()，但為保險起見，可以調用
+                startScanner();
+            }
+        }
+        
+        // --- 核心提交函數：直接向 Google Form 提交數據 ---
+        // 獨立出來，由 confirmSubmission 調用
+        function submitData(barcode) {
+            statusMessage.textContent = "⏳ 直接提交中，請稍候...";
+            
+            const formData = new FormData();
+            formData.append(BARCODE_ENTRY_ID, barcode);
+
+            fetch(FORM_SUBMISSION_URL, {
+                method: 'POST',
+                body: new URLSearchParams(formData)
+            })
+            .then(response => {
+                if (response.ok || response.status === 302) {
+                    statusMessage.textContent = "🎉 提交成功！條碼已記錄。";
+                    barcodeInput.value = ""; 
+                    startScanner(); 
+                } else {
+                    statusMessage.textContent = "❌ 提交失敗！Form 服務器錯誤。";
+                    console.error('Form submission failed with status:', response.status);
+                }
+            })
+            .catch(error => {
+                statusMessage.textContent = "❌ 傳輸失敗！請檢查網絡。";
+                console.error('Network Error:', error);
+            });
+        }
+
+        // 頁面載入後，立即啟動掃描器
+        startScanner();
+    </script>
+</body>
+</html>
