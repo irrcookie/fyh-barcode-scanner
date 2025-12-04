@@ -13,7 +13,8 @@
         #reader { width: 100%; max-width: 400px; margin: 0 auto; border: 1px solid #ccc; border-radius: 8px; overflow: hidden; }
         .result-box { background: white; padding: 15px; border-radius: 5px; margin-top: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         input[type="text"] { width: 90%; padding: 10px; margin: 10px 0; border: 2px solid #ddd; border-radius: 5px; font-size: 16px; }
-        /* 提交按鈕顏色調整 */
+        
+        /* 提交按鈕樣式 */
         .submit-btn { 
             background-color: #28a745; 
             color: white; 
@@ -23,7 +24,7 @@
             cursor: pointer; 
             font-size: 18px; 
             margin-top: 10px; 
-            margin-bottom: 5px; /* 為 Retake 按鈕留空間 */
+            margin-bottom: 5px; 
             width: 90%;
             display: block;
             margin-left: auto;
@@ -50,6 +51,10 @@
         .retake-btn:hover {
             background-color: #5a6268;
         }
+        /* 隱藏元素 */
+        .hidden {
+            display: none !important;
+        }
         .status-message { margin-top: 15px; font-weight: bold; }
     </style>
 </head>
@@ -67,7 +72,7 @@
         
         <button onclick="confirmSubmission()" class="submit-btn">✅ 直接提交紀錄</button>
         
-        <button onclick="retake()" class="retake-btn">🔄 重新掃描 (Retake)</button>
+        <button onclick="retake()" class="retake-btn hidden" id="retakeButton">🔄 重新掃描 (Retake)</button>
         
         <p class="status-message" id="status"></p>
     </div>
@@ -82,10 +87,13 @@
         const html5Qrcode = new Html5Qrcode("reader");
         const barcodeInput = document.getElementById("barcode_input");
         const statusMessage = document.getElementById("status");
+        const retakeButton = document.getElementById("retakeButton"); // 獲取按鈕元素
         
         // 啟動掃描器函數
         function startScanner() {
-            // 先停止正在運行的掃描器，以確保重新啟動
+            // 每次啟動時，先隱藏 Retake 按鈕
+            retakeButton.classList.add('hidden');
+
             if (html5Qrcode.isScanning) {
                 html5Qrcode.stop().then(() => {
                     _executeStartScanner();
@@ -99,7 +107,6 @@
 
         // 實際執行啟動的函數
         function _executeStartScanner() {
-            // 長方形掃描框設置
             const config = { 
                 fps: 10, 
                 qrbox: { width: 300, height: 150 }, 
@@ -117,7 +124,11 @@
         function onScanSuccess(decodedText, decodedResult) {
             barcodeInput.value = decodedText;
             statusMessage.textContent = "✅ 掃描成功：" + decodedText;
-            // *** 掃描成功後停止鏡頭，等待用戶操作 ***
+            
+            // *** 掃描成功後，顯示 Retake 按鈕 ***
+            retakeButton.classList.remove('hidden');
+
+            // 掃描成功後停止鏡頭，等待用戶操作
             html5Qrcode.stop().then(() => {}).catch(() => {});
         }
         
@@ -125,7 +136,10 @@
 
         // --- 重新掃描函數 ---
         function retake() {
-            barcodeInput.value = ""; // 清空條碼
+            // *** 重新掃描時，隱藏 Retake 按鈕 ***
+            retakeButton.classList.add('hidden');
+            
+            barcodeInput.value = ""; 
             statusMessage.textContent = "請對準下一個條碼。";
             startScanner(); // 重新啟動掃描器
         }
@@ -141,10 +155,9 @@
             const isConfirmed = window.confirm(`你確定要提交條碼：${barcode} 嗎？`);
 
             if (isConfirmed) {
-                // 如果用戶點擊 "確認"，則執行提交
                 submitData(barcode);
             } else {
-                // 如果取消，則重新啟動掃描
+                // 如果取消，則執行 Retake 操作
                 retake(); 
             }
         }
@@ -159,24 +172,21 @@
             fetch(FORM_SUBMISSION_URL, {
                 method: 'POST',
                 body: new URLSearchParams(formData),
-                // 阻止 fetch 追蹤 302 重新導向，解決提交成功但顯示錯誤的問題
                 redirect: 'manual' 
             })
             .then(response => {
-                // 檢查是否成功接收 (302 或 opaque)
                 if (response.status === 302 || response.type === 'opaque') {
-                    // 提交成功！跳轉到 success.html 頁面
+                    // 成功後，跳轉到 success.html 頁面
+                    // 在跳轉前，不需要隱藏 Retake 按鈕，因為頁面會被替換。
                     window.location.href = 'success.html'; 
                 } else {
-                    // 服務器返回了錯誤狀態 (非 302/opaque)
                     statusMessage.textContent = "❌ 提交失敗！Form 服務器錯誤。";
                     console.error('Form submission failed with status:', response.status);
                     startScanner(); // 失敗後重新啟動
                 }
             })
             .catch(error => {
-                // 真正的網絡錯誤
-                statusMessage.textContent = "❌ 傳輸失敗！請檢查網絡。";
+                statusMessage.textContent = "❌ 傳輸失敗！請檢查網絡或 Forms 設定。";
                 console.error('真正的網絡錯誤:', error);
                 startScanner(); // 失敗後重新啟動
             });
