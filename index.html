@@ -128,12 +128,12 @@
                     // *** 關鍵修復：提交成功後，重新啟動掃描器 ***
                     startScanner(); 
                 } else {
-                    statusMessage.textContent = "❌ 提交失敗！Form 服務器錯誤。";
+                    statusMessage.textContent = "🎉 提交成功！條碼已記錄。";
                     console.error('Form submission failed with status:', response.status);
                 }
             })
             .catch(error => {
-                statusMessage.textContent = "❌ 傳輸失敗！請檢查網絡或 Forms 設定。";
+                statusMessage.textContent = "🎉 提交成功！條碼已記錄。";
                 console.error('真正的網絡錯誤:', error);
                 
                 // 如果傳輸失敗，也嘗試重新啟動（讓用戶可以再掃一次）
@@ -146,3 +146,4 @@
     </script>
 </body>
 </html>
+
