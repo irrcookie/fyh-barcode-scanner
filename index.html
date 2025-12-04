@@ -10,13 +10,46 @@
         body { font-family: sans-serif; text-align: center; margin: 20px; background-color: #f4f4f9; }
         .logo { max-width: 150px; height: auto; margin-bottom: 15px; } 
         h1 { color: #333; font-size: 24px; margin-top: 5px; }
-        /* 鏡頭顯示區域，保持最大寬度限制 */
         #reader { width: 100%; max-width: 400px; margin: 0 auto; border: 1px solid #ccc; border-radius: 8px; overflow: hidden; }
         .result-box { background: white; padding: 15px; border-radius: 5px; margin-top: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         input[type="text"] { width: 90%; padding: 10px; margin: 10px 0; border: 2px solid #ddd; border-radius: 5px; font-size: 16px; }
         /* 提交按鈕顏色調整 */
-        button { background-color: #28a745; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-size: 18px; margin-top: 10px; }
-        button:hover { background-color: #1e7e34; }
+        .submit-btn { 
+            background-color: #28a745; 
+            color: white; 
+            padding: 10px 20px; 
+            border: none; 
+            border-radius: 5px; 
+            cursor: pointer; 
+            font-size: 18px; 
+            margin-top: 10px; 
+            margin-bottom: 5px; /* 為 Retake 按鈕留空間 */
+            width: 90%;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .submit-btn:hover { 
+            background-color: #1e7e34; 
+        }
+        /* 重新掃描按鈕樣式 */
+        .retake-btn {
+            background-color: #6c757d;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 18px;
+            margin-top: 5px;
+            width: 90%;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .retake-btn:hover {
+            background-color: #5a6268;
+        }
         .status-message { margin-top: 15px; font-weight: bold; }
     </style>
 </head>
@@ -32,7 +65,9 @@
         <label for="barcode_input">掃描到的號碼：</label>
         <input type="text" id="barcode_input" readonly placeholder="請掃描條碼或 QR Code">
         
-        <button onclick="confirmSubmission()">✅ 直接提交紀錄</button>
+        <button onclick="confirmSubmission()" class="submit-btn">✅ 直接提交紀錄</button>
+        
+        <button onclick="retake()" class="retake-btn">🔄 重新掃描 (Retake)</button>
         
         <p class="status-message" id="status"></p>
     </div>
@@ -50,13 +85,11 @@
         
         // 啟動掃描器函數
         function startScanner() {
-            // 先檢查並停止正在運行的掃描器，以確保重新啟動
+            // 先停止正在運行的掃描器，以確保重新啟動
             if (html5Qrcode.isScanning) {
                 html5Qrcode.stop().then(() => {
-                    // 確保停止後才啟動
                     _executeStartScanner();
                 }).catch(() => {
-                    // 如果停止失敗，也嘗試啟動
                     _executeStartScanner();
                 });
             } else {
@@ -66,10 +99,9 @@
 
         // 實際執行啟動的函數
         function _executeStartScanner() {
-            // *** 這裡設定了長方形掃描框 (width: 300, height: 150) ***
+            // 長方形掃描框設置
             const config = { 
                 fps: 10, 
-                // 寬 300px，高 150px
                 qrbox: { width: 300, height: 150 }, 
                 facingMode: "environment" 
             };
@@ -85,11 +117,18 @@
         function onScanSuccess(decodedText, decodedResult) {
             barcodeInput.value = decodedText;
             statusMessage.textContent = "✅ 掃描成功：" + decodedText;
-            // 掃描成功後停止鏡頭，等待用戶確認提交
+            // *** 掃描成功後停止鏡頭，等待用戶操作 ***
             html5Qrcode.stop().then(() => {}).catch(() => {});
         }
         
         function onScanError(errorMessage) {}
+
+        // --- 重新掃描函數 ---
+        function retake() {
+            barcodeInput.value = ""; // 清空條碼
+            statusMessage.textContent = "請對準下一個條碼。";
+            startScanner(); // 重新啟動掃描器
+        }
 
         // --- 彈出確認視窗並處理結果 ---
         function confirmSubmission() {
@@ -102,12 +141,11 @@
             const isConfirmed = window.confirm(`你確定要提交條碼：${barcode} 嗎？`);
 
             if (isConfirmed) {
+                // 如果用戶點擊 "確認"，則執行提交
                 submitData(barcode);
             } else {
                 // 如果取消，則重新啟動掃描
-                barcodeInput.value = ""; 
-                statusMessage.textContent = "已取消提交。重新啟動掃描器...";
-                startScanner(); 
+                retake(); 
             }
         }
         
@@ -121,23 +159,24 @@
             fetch(FORM_SUBMISSION_URL, {
                 method: 'POST',
                 body: new URLSearchParams(formData),
-                // 阻止 fetch 追蹤 302 重新導向
+                // 阻止 fetch 追蹤 302 重新導向，解決提交成功但顯示錯誤的問題
                 redirect: 'manual' 
             })
             .then(response => {
                 // 檢查是否成功接收 (302 或 opaque)
                 if (response.status === 302 || response.type === 'opaque') {
-                    // *** 成功後，跳轉到 success.html 頁面 ***
-                    // 確保 success.html 檔案已上傳到 GitHub 根目錄
+                    // 提交成功！跳轉到 success.html 頁面
                     window.location.href = 'success.html'; 
                 } else {
+                    // 服務器返回了錯誤狀態 (非 302/opaque)
                     statusMessage.textContent = "❌ 提交失敗！Form 服務器錯誤。";
                     console.error('Form submission failed with status:', response.status);
                     startScanner(); // 失敗後重新啟動
                 }
             })
             .catch(error => {
-                statusMessage.textContent = "❌ 傳輸失敗！請檢查網絡或 Forms 設定。";
+                // 真正的網絡錯誤
+                statusMessage.textContent = "❌ 傳輸失敗！請檢查網絡。";
                 console.error('真正的網絡錯誤:', error);
                 startScanner(); // 失敗後重新啟動
             });
